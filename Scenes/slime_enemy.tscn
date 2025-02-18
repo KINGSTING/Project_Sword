@@ -1,0 +1,138 @@
+[gd_scene load_steps=7 format=3 uid="uid://cmvl74pv2k7vc"]
+
+[ext_resource type="Texture2D" uid="uid://bysmhl5vh4bbt" path="res://Assets/brackeys_platformer_assets/sprites/slime_green.png" id="2_s1mk4"]
+
+[sub_resource type="GDScript" id="GDScript_7566e"]
+script/source = "extends CharacterBody2D
+
+@onready var animation_player = $AnimationPlayer
+@onready var sprite = $Sprite2D
+@onready var detection_area = $vision/detection_area
+@onready var raycast = $vision/detection_raycast
+@onready var navigation_agent = $vision/NavigationAgent2D
+
+@export var speed: float = 50.0
+@export var acceleration: float = 200.0
+@export var gravity: float = 1200.0
+@export var attack_range: float = 30.0  # Distance to attack
+
+var player = null
+var current_state = \"IDLE\"
+var velocity_target: Vector2 = Vector2.ZERO
+
+func _ready():
+	navigation_agent.path_desired_distance = 4.0  # How close it needs to get to the path points
+	navigation_agent.target_desired_distance = 8.0  # How close it needs to get to the player
+
+func _physics_process(delta):
+	apply_gravity(delta)
+
+	match current_state:
+		\"IDLE\":
+			idle_behavior()
+		\"CHASE\":
+			chase_behavior(delta)
+		\"ATTACK\":
+			attack_behavior()
+
+	move_and_slide()
+
+func apply_gravity(delta):
+	if not is_on_floor():
+		velocity.y += gravity * delta
+
+# ---------------------- IDLE STATE ----------------------
+func idle_behavior():
+	velocity.x = 0  # Stop moving
+	animation_player.play(\"idle\")
+
+# ---------------------- CHASE STATE ----------------------
+func chase_behavior(delta):
+	if player:
+		navigation_agent.target_position = player.global_position  # Update target position
+		var next_position = navigation_agent.get_next_path_position()
+		var direction = (next_position - global_position).normalized()
+		
+		# Check if close enough to attack
+		if global_position.distance_to(player.global_position) <= attack_range:
+			current_state = \"ATTACK\"
+			return
+		
+		# Apply movement
+		velocity = velocity.lerp(direction * speed, acceleration * delta)
+		
+		# Flip sprite based on movement direction
+		if direction.x != 0:
+			sprite.flip_h = direction.x < 0
+
+		animation_player.play(\"walk\")
+
+# ---------------------- ATTACK STATE ----------------------
+func attack_behavior():
+	velocity = Vector2.ZERO  # Stop moving
+	animation_player.play(\"attack\")
+	await animation_player.animation_finished
+	current_state = \"CHASE\"  # Return to chasing after attacking
+
+# ---------------------- DETECTION & CHASING ----------------------
+func _on_detection_area_body_entered(body):
+	if body.is_in_group(\"player\"):
+		player = body
+		if is_player_visible():
+			current_state = \"CHASE\"
+
+func _on_detection_area_body_exited(body):
+	if body == player:
+		player = null
+		current_state = \"IDLE\"
+
+# ---------------------- LINE OF SIGHT CHECK ----------------------
+func is_player_visible() -> bool:
+	if not player:
+		return false
+	raycast.target_position = player.global_position - global_position
+	raycast.force_raycast_update()
+	return raycast.is_colliding() and raycast.get_collider() == player
+"
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_q08mp"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_vkao8"]
+radius = 101.02
+
+[sub_resource type="Animation" id="Animation_to7jr"]
+resource_name = "idle"
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_c25nr"]
+_data = {
+"idle": SubResource("Animation_to7jr")
+}
+
+[node name="slime-enemy" type="CharacterBody2D"]
+script = SubResource("GDScript_7566e")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_q08mp")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -2)
+texture = ExtResource("2_s1mk4")
+hframes = 4
+vframes = 3
+frame = 7
+
+[node name="vision" type="Area2D" parent="."]
+
+[node name="detection_area" type="CollisionShape2D" parent="vision"]
+shape = SubResource("CircleShape2D_vkao8")
+
+[node name="detection_raycast" type="RayCast2D" parent="vision"]
+target_position = Vector2(100, 0)
+
+[node name="NavigationAgent2D" type="NavigationAgent2D" parent="vision"]
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+"": SubResource("AnimationLibrary_c25nr")
+}

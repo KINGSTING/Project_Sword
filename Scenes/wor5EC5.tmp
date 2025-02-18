@@ -1,0 +1,15 @@
+[gd_scene load_steps=4 format=3 uid="uid://udpgk3javysj"]
+
+[ext_resource type="PackedScene" uid="uid://0wivuxn6jpot" path="res://Scenes/knight-player.tscn" id="1_2uip6"]
+[ext_resource type="PackedScene" uid="uid://hsaby3c02pbn" path="res://Scenes/test_level.tscn" id="2_p6s68"]
+[ext_resource type="PackedScene" uid="uid://b53pe3q6smjns" path="res://Scenes/orc_enemy.tscn" id="3_mrjhe"]
+
+[node name="World" type="Node2D"]
+
+[node name="CharacterBody2D" parent="." instance=ExtResource("1_2uip6")]
+
+[node name="Test_level" parent="." instance=ExtResource("2_p6s68")]
+position = Vector2(-120, -345)
+
+[node name="Orc_enemy" parent="." instance=ExtResource("3_mrjhe")]
+position = Vector2(782, 87)
