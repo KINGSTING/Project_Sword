@@ -1,0 +1,19 @@
+[gd_scene load_steps=5 format=3 uid="uid://udpgk3javysj"]
+
+[ext_resource type="PackedScene" uid="uid://0wivuxn6jpot" path="res://Scenes/characters/knight_player.tscn" id="1_2uip6"]
+[ext_resource type="PackedScene" uid="uid://hsaby3c02pbn" path="res://Scenes/levels/test_level.tscn" id="2_p6s68"]
+[ext_resource type="PackedScene" uid="uid://cmvl74pv2k7vc" path="res://Scenes/characters/slime_enemy.tscn" id="3_qv851"]
+[ext_resource type="PackedScene" uid="uid://horiaq411c0y" path="res://Scenes/characters/fire_kinght.tscn" id="4_necux"]
+
+[node name="World" type="Node2D"]
+
+[node name="CharacterBody2D" parent="." instance=ExtResource("1_2uip6")]
+
+[node name="Test_level" parent="." instance=ExtResource("2_p6s68")]
+position = Vector2(-120, -345)
+
+[node name="slime-enemy" parent="." instance=ExtResource("3_qv851")]
+position = Vector2(592, 54)
+
+[node name="Fire-Kinght" parent="." instance=ExtResource("4_necux")]
+position = Vector2(-39, 91)

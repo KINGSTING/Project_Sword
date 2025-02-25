@@ -13,8 +13,7 @@ const DASH_COOLDOWN = 1.0  # Dash cooldown time
 @onready var sprite = $AnimatedSprite2D
 @onready var attack_collision = $attack_collision  # Attack Area2D
 @onready var attack_shape = attack_collision.get_node("attack_area")  # CollisionShape2D
-@onready var hurt_collision: CollisionShape2D = $hurt_collison/hurt_area
-@onready var attack_enemy_detector: RayCast2D = $attack_player_detector # Ensure this exists in the scene
+@onready var hurt_collision: Area2D = $hurt_collison
 @onready var health_bar = $HealthBar
 
 @export var coyote_time: float = 0.2
@@ -45,7 +44,11 @@ func _ready() -> void:
 	# Set initial animation to idle
 	sprite.play("idle")
 	sprite.animation_finished.connect(_on_animation_finished)
-	hurt_collision.connect("area_entered", _on_attack_area_entered)  # Correct collision
+
+	# Ensure the signal isn't connected multiple times
+	if not hurt_collision.area_entered.is_connected(_on_attack_area_entered):
+		hurt_collision.area_entered.connect(_on_attack_area_entered)  
+
 	health_bar.init_health(hp)
 
 func _physics_process(delta: float) -> void:
@@ -54,7 +57,12 @@ func _physics_process(delta: float) -> void:
 		dash_cooldown_timer -= delta
 	
 	if is_knocked_back:
-		return  # Prevent player from controlling movement
+		move_and_slide()
+		return  # Prevent further movement inputs until knockback ends
+
+	# Ensure knockback ends after some time
+	if velocity.x == 0 and is_on_floor():
+		is_knocked_back = false  # ✅ Reset knockback state when landing
 	
 	# Handle dash duration
 	if is_dashing:
@@ -140,47 +148,59 @@ func _on_animation_finished() -> void:
 	if sprite.animation.begins_with("attack_"):
 		attack_shape.disabled = true  # Disable hitbox
 		attack_in_progress = false
-		# Return to idle if not moving
 		if velocity.x == 0 and is_on_floor() and not is_dashing:
 			sprite.play("idle")
-	elif sprite.animation == "hurt" and hp <= 0:
-		sprite.play("death")  # Play death animation
+	elif sprite.animation == "hurt":
+		if hp <= 0:
+			sprite.play("death")  # Play death animation
+		else:
+			is_knocked_back = false  # ✅ Ensure movement is re-enabled
+			attack_in_progress = false
+			if velocity.x != 0:
+				sprite.play("run")
+			else:
+				sprite.play("idle")  # If still, return to idle
+	elif sprite.animation == "death":
+		queue_free()  # Remove player from scene
 
 func _on_animated_sprite_2d_animation_finished() -> void:
 	if sprite.animation == "death":
 		queue_free()  # Remove player from scene
 
-func take_damage(amount: int):
+func take_damage(amount: int, from_left: bool = true):
 	hp -= amount
 	print("Player HP:", hp)
-	
+
 	# Update health bar
 	health_bar.value = hp
-	
+
 	if hp <= 0:
 		die()
 	else:
 		sprite.play("hurt")  
-		
-		# Apply knockback
-		var knockback_force = -500 if sprite.flip_h else 500
-		velocity.x = knockback_force
-		move_and_slide()
 
-		# Disable movement for 0.3 seconds (stun effect)
+		# Apply knockback force
+		var knockback_force = Vector2(500 if from_left else -500, -200)  # Push player away and slightly up
+		velocity = knockback_force  # Directly assign instead of adding
+
+		# Disable movement temporarily (stun effect)
 		is_knocked_back = true
-		await get_tree().create_timer(0.3).timeout
-		is_knocked_back = false
-		
-		# Move immediately so knockback is applied instantly
-		move_and_slide()
+		await get_tree().create_timer(0.3).timeout  # Stunned for 0.3s
+		is_knocked_back = false  
+		velocity = Vector2.ZERO  # ✅ Ensure velocity resets properly
+
+		# Ensure the animation resets properly
+		if is_on_floor():
+			sprite.play("idle")
+
 
 func _on_attack_area_entered(area: Area2D):
 	print("Collision detected with:", area.name)  # Debugging
 	if area.is_in_group("enemy"):
 		print("Enemy hit!")
 		var enemy = area.get_parent()  # Get the enemy node
-		enemy.take_damage(1, sprite.flip_h)  # Pass damage + attack direction
+		var hit_from_left = enemy.global_position.x < global_position.x  # Determine hit direction
+		take_damage(1, hit_from_left)  # Pass damage + attack direction
 
 func die():
 	print("Player died!")
@@ -203,4 +223,17 @@ func _stop_attack():
 
 
 func _on_hurt_collison_area_entered(area: Area2D) -> void:
-	take_damage(1)
+	print("Collision detected with:", area.name)  # Debugging
+	if area.is_in_group("enemy_sword"):
+		var enemy = area.get_parent()
+		var hit_from_left = enemy.global_position.x < global_position.x 
+		take_damage(1, hit_from_left)
+
+
+func _on_attack_collision_area_entered(area: Area2D) -> void:
+	print("Collision detected with:", area.name)  # Debugging
+	if area.is_in_group("enemy_sword"):
+		print("Enemy hit!")
+		var enemy = area.get_parent()  # Get the enemy node
+		var hit_from_left = enemy.global_position.x < global_position.x  # Determine hit direction
+		take_damage(1, hit_from_left)  # Pass damage + attack direction

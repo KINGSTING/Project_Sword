@@ -1,8 +1,8 @@
 extends Node2D
 
 @onready var tilemap = $TileMapLayer  # Ensure this is a TileMap node
-@onready var orc_scene = preload("res://Scenes/orc_enemy.tscn")  # Preload the orc scene
-@onready var door_scene = preload("res://Scenes/door.tscn")
+@onready var orc_scene = preload("res://Scenes/characters/orc_enemy.tscn")  # Preload the orc scene
+@onready var door_scene = preload("res://Scenes/components/door.tscn")
 
 var platform_atlas = Vector2i(0, 0)  # Ground tile in the atlas
 var wall_atlas = Vector2i(0, 1)      # Wall tile in the atlas
